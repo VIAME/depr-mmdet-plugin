@@ -12,6 +12,15 @@ set( CMAKE_CXX_STANDARD 17 )
 
 project( VIAME-External-Plugin )
 set( PLUGIN_NAME "VIAME-External-Plugin" )
+set( PYTHON_LIBS_TO_BUILD mmcv mmdet )
+
+include( ExternalProject )
+
+function( CreateDirectory _outFolder )
+  if( NOT EXISTS ${_outFolder} )
+    file( MAKE_DIRECTORY ${_outFolder} )
+  endif()
+endfunction()
 
 # Make sure we know where the VIAME installation rests
 set( VIAME_INSTALL_DIR "" CACHE PATH "Location of VIAME installation" )
@@ -37,6 +46,8 @@ if( NOT PLUGIN_INSTALL_DIR )
   message( FATAL_ERROR "Plugin install dir must be set" )
 endif()
 
+CreateDirectory( PLUGIN_INSTALL_DIR )
+
 # Find python and set up required python paths
 find_package( Python COMPONENTS Interpreter Development REQUIRED )
 
@@ -56,13 +67,11 @@ if( WIN32 )
   string( REPLACE "/" "\\" PLUGIN_PYTHON_USERBASE "${PLUGIN_PYTHON_USERBASE}" )
 
   set( PLUGIN_PYTHON_PATH
-    ${PLUGIN_PYBASE};${PLUGIN_PYBASE}/site-packages;${PLUGIN_PYBASE}/dist-packages;
-    ${VIAME_PYBASE};${VIAME_PYBASE}/site-packages;${VIAME_PYBASE}/dist-packages
+    ${PLUGIN_PYBASE};${PLUGIN_PYBASE}/site-packages;${PLUGIN_PYBASE}/dist-packages;${VIAME_PYBASE};${VIAME_PYBASE}/site-packages;${VIAME_PYBASE}/dist-packages
     CACHE INTERNAL "Pythonpath for all files installed as a part of VIAME" )
 else()
   set( PLUGIN_PYTHON_PATH
-    ${PLUGIN_PYBASE}:${PLUGIN_PYBASE}/site-packages:${PLUGIN_PYBASE}/dist-packages:
-    ${VIAME_PYBASE}:${VIAME_PYBASE}/site-packages:${VIAME_PYBASE}/dist-packages
+    ${PLUGIN_PYBASE}:${PLUGIN_PYBASE}/site-packages:${PLUGIN_PYBASE}/dist-packages:${VIAME_PYBASE}:${VIAME_PYBASE}/site-packages:${VIAME_PYBASE}/dist-packages
     CACHE INTERNAL "Pythonpath for all files installed as a part of VIAME")
 endif()
 
@@ -198,8 +207,6 @@ endif()
 ###
 # Python Sub-Project Builds
 ##
-set( PYTHON_LIBS_TO_BUILD mmcv mmdet )
-
 set( VIAME_PROJECT_LIST ${VIAME_PROJECT_LIST} ${PYTHON_LIBS_TO_BUILD} )
 set( PYTHON_ENV_VARS )
 
@@ -243,12 +250,12 @@ list( APPEND PYTHON_ENV_VARS "PYTHONUSERBASE=${PLUGIN_PYTHON_USERBASE}" )
 
 foreach( LIB ${PYTHON_LIBS_TO_BUILD} )
 
-  set( LIBRARY_LOCATION ${VIAME_PACKAGES_DIR}/packages/${LIB} )
+  set( LIBRARY_LOCATION ${CMAKE_SOURCE_DIR}/packages/${LIB} )
   set( LIBRARY_LOCATION_URL file://${LIBRARY_LOCATION} )
 
-  set( LIBRARY_PIP_CACHE_DIR ${CMAKE_BUILD_PREFIX}/src/python-build/${LIB}-cache )
-  set( LIBRARY_PIP_BUILD_DIR ${CMAKE_BUILD_PREFIX}/src/python-build/${LIB}-build )
-  set( LIBRARY_PIP_TMP_DIR   ${CMAKE_BUILD_PREFIX}/src/python-build/${LIB}-tmp )
+  set( LIBRARY_PIP_CACHE_DIR ${CMAKE_BINARY_DIR}/src/${LIB}-cache )
+  set( LIBRARY_PIP_BUILD_DIR ${CMAKE_BINARY_DIR}/src/${LIB}-build )
+  set( LIBRARY_PIP_TMP_DIR   ${CMAKE_BINARY_DIR}/src/${LIB}-tmp )
 
   CreateDirectory( ${LIBRARY_PIP_CACHE_DIR} )
   CreateDirectory( ${LIBRARY_PIP_BUILD_DIR} )
@@ -257,30 +264,24 @@ foreach( LIB ${PYTHON_LIBS_TO_BUILD} )
   set( LIBRARY_PIP_BUILD_DIR_CMD -b ${LIBRARY_PIP_BUILD_DIR} )
   set( LIBRARY_PIP_CACHE_DIR_CMD --cache-dir ${LIBRARY_PIP_CACHE_DIR} )
 
-  if( VIAME_SYMLINK_PYTHON )
+  if( "${LIB}" STREQUAL "mmcv" )
     set( LIBRARY_PIP_BUILD_CMD
-      ${Python_EXECUTABLE} setup.py build )
-    set( LIBRARY_PIP_INSTALL_CMD
-      ${Python_EXECUTABLE} -m pip install --user -e . )
+      ${Python_EXECUTABLE} setup.py
+        bdist_wheel -d ${LIBRARY_PIP_BUILD_DIR} )
   else()
-    if( "${LIB}" STREQUAL "mmcv" OR "${LIB}" STREQUAL "torchvision" )
-      set( LIBRARY_PIP_BUILD_CMD
-        ${Python_EXECUTABLE} setup.py
-          bdist_wheel -d ${LIBRARY_PIP_BUILD_DIR} )
-    else()
-      set( LIBRARY_PIP_BUILD_CMD
-        ${Python_EXECUTABLE} setup.py build_ext
-          --include-dirs="${VIAME_INSTALL_DIR}/include"
-          --library-dirs="${VIAME_INSTALL_DIR}/lib"
-          --inplace bdist_wheel -d ${LIBRARY_PIP_BUILD_DIR} )
-    endif()
-    set( LIBRARY_PIP_INSTALL_CMD
-      ${CMAKE_COMMAND}
-        -DPYTHON_EXECUTABLE=${Python_EXECUTABLE}
-        -DPython_EXECUTABLE=${Python_EXECUTABLE}
-        -DWHEEL_DIR=${LIBRARY_PIP_BUILD_DIR}
-        -P ${VIAME_CMAKE_DIR}/install_python_wheel.cmake )
+    set( LIBRARY_PIP_BUILD_CMD
+      ${Python_EXECUTABLE} setup.py build_ext
+        --include-dirs="${VIAME_INSTALL_DIR}/include"
+        --library-dirs="${VIAME_INSTALL_DIR}/lib"
+        --inplace bdist_wheel -d ${LIBRARY_PIP_BUILD_DIR} )
   endif()
+
+  set( LIBRARY_PIP_INSTALL_CMD
+    ${CMAKE_COMMAND}
+      -DPYTHON_EXECUTABLE=${Python_EXECUTABLE}
+      -DPython_EXECUTABLE=${Python_EXECUTABLE}
+      -DWHEEL_DIR=${LIBRARY_PIP_BUILD_DIR}
+      -P ${VIAME_CMAKE_DIR}/install_python_wheel.cmake )
 
   set( LIBRARY_PYTHON_BUILD
     ${CMAKE_COMMAND} -E env "${PYTHON_ENV_VARS}"
@@ -293,22 +294,15 @@ foreach( LIB ${PYTHON_LIBS_TO_BUILD} )
 
   set( LIBRARY_PATCH_COMMAND "" )
 
-  if( "${LIB}" STREQUAL "bioharn" )
-    set( PROJECT_DEPS netharn )
-  elseif( "${LIB}" STREQUAL "netharn" )
-    set( PROJECT_DEPS mmdetection )
-  elseif( "${LIB}" STREQUAL "mmdetection" )
-    set( PROJECT_DEPS fletch mmcv )
-    if( VIAME_ENABLE_PYTHON-VIS-INTERNAL )
-      set( PROJECT_DEPS ${PROJECT_DEPS} torchvision )
-    endif()
+  if( "${LIB}" STREQUAL "mmdet" )
+    set( PROJECT_DEPS mmcv )
   else()
-    set( PROJECT_DEPS fletch python-deps pytorch )
+    set( PROJECT_DEPS )
   endif()
 
   ExternalProject_Add( ${LIB}
     DEPENDS ${PROJECT_DEPS}
-    PREFIX ${VIAME_BUILD_PREFIX}
+    PREFIX ${CMAKE_BINARY_DIR}
     SOURCE_DIR ${LIBRARY_LOCATION}
     BUILD_IN_SOURCE 1
     PATCH_COMMAND ${LIBRARY_PATCH_COMMAND}
@@ -321,7 +315,7 @@ foreach( LIB ${PYTHON_LIBS_TO_BUILD} )
   if( VIAME_FORCEBUILD )
     ExternalProject_Add_Step( ${LIB} forcebuild
       COMMAND ${CMAKE_COMMAND}
-        -E remove ${VIAME_BUILD_PREFIX}/src/{LIB}-stamp
+        -E remove ${CMAKE_BINARY_DIR}/src/{LIB}-stamp
       COMMENT "Removing build stamp file for build update (forcebuild)."
       DEPENDEES configure
       DEPENDERS build
