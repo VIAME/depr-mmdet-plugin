@@ -278,10 +278,9 @@ foreach( LIB ${PYTHON_LIBS_TO_BUILD} )
 
   set( LIBRARY_PIP_INSTALL_CMD
     ${CMAKE_COMMAND}
-      -DPYTHON_EXECUTABLE=${Python_EXECUTABLE}
       -DPython_EXECUTABLE=${Python_EXECUTABLE}
       -DWHEEL_DIR=${LIBRARY_PIP_BUILD_DIR}
-      -P ${VIAME_CMAKE_DIR}/install_python_wheel.cmake )
+      -P ${CMAKE_SOURCE_DIR}/install_python_wheel.cmake )
 
   set( LIBRARY_PYTHON_BUILD
     ${CMAKE_COMMAND} -E env "${PYTHON_ENV_VARS}"
