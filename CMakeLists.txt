@@ -46,7 +46,7 @@ if( NOT PLUGIN_INSTALL_DIR )
   message( FATAL_ERROR "Plugin install dir must be set" )
 endif()
 
-CreateDirectory( PLUGIN_INSTALL_DIR )
+CreateDirectory( "${PLUGIN_INSTALL_DIR}" )
 
 # Find python and set up required python paths
 find_package( Python COMPONENTS Interpreter Development REQUIRED )
