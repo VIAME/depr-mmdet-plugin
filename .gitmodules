@@ -1,0 +1,6 @@
+[submodule "packages/mmdet"]
+	path = packages/mmdet
+	url = https://github.com/open-mmlab/mmdetection.git
+[submodule "packages/mmcv"]
+	path = packages/mmcv
+	url = https://github.com/open-mmlab/mmcv.git
