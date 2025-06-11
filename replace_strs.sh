@@ -6,7 +6,7 @@ find lib \( -type d -name .git -prune \) -o -type f -print0 | xargs -0 sed -i 's
 
 find lib \( -type d -name .git -prune \) -o -type f -print0 | xargs -0 sed -i 's/from mmdet/from mmdet_depr/g'
 
-rename 's/mmcv/mmcv_depr/' *
-rename 's/mmdet/mmdet_depr/' *
+rename 's/mmcv/mmcv_depr/' lib/python3.10/site-packages/*
+rename 's/mmdet/mmdet_depr/' lib/python3.10/site-packages/*
 
 
