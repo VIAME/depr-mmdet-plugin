@@ -8,7 +8,7 @@ find lib \( -type d -name .git -prune \) -o -type f -print0 | xargs -0 sed -i "s
 
 find lib \( -type d -name .git -prune \) -o -type f -print0 | xargs -0 sed -i "s/mmcv_maximum_version = '1.3'/mmcv_maximum_version = '1.3.19'/g"
 
-find lib \( -type d -name .git -prune \) -o -type f -print0 | xargs -0 sed -i "s/mmcv\./mmcv_depr\./g"
+sed -i "s/mmcv\./mmcv_depr\./g" lib/python3.10/site-packages/mmcv/utils/ext_loader.py
 
 rename 's/mmcv/mmcv_depr/' lib/python3.10/site-packages/*
 rename 's/mmdet/mmdet_depr/' lib/python3.10/site-packages/*
